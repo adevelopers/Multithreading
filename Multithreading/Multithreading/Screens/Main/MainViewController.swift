@@ -15,10 +15,10 @@ class ViewModel {
     let concurrentQueue = DispatchQueue.init(label: "concurrent_queue_for_value", attributes: DispatchQueue.Attributes.concurrent)
     
     @objc func increaseBy1000() {
-        concurrentQueue.async(flags: .barrier) {
-            for _ in 0..<1000 {
-                let v = self.value + 1
-                self.value = v
+        for _ in 0..<1000 {
+            let v = self.value + 1
+            self.value = v
+            if Int(self.value) % 1000 == 0 {
                 print("value->\(self.value)")
             }
         }
@@ -26,6 +26,10 @@ class ViewModel {
     
     func resetValue() {
         value = 0
+    }
+    
+    func printValue() {
+        print("result value->\(self.value)")
     }
 }
 
@@ -102,18 +106,23 @@ extension MainViewController {
         model = 0
         viewModel.resetValue()
         
-        DispatchQueue.global(qos: DispatchQoS.QoSClass.userInitiated).async {
-            self.viewModel.increaseBy1000()
+        let taskGroupBlue = DispatchGroup()
+        
+        taskGroupBlue.notify(queue: .main) {
+            print("Всё отработало")
+            self.viewModel.printValue()
         }
         
-        DispatchQueue.global(qos: DispatchQoS.QoSClass.userInitiated).async {
+        taskGroupBlue.enter()
             self.viewModel.increaseBy1000()
-        }
-
+        taskGroupBlue.leave()
         
-//        Thread.detachNewThreadSelector(#selector(ViewModel.increaseBy1000), toTarget: viewModel, with: nil)
-//        Thread.detachNewThreadSelector(#selector(ViewModel.increaseBy1000), toTarget: viewModel, with: nil)
-       
+        taskGroupBlue.enter()
+            self.viewModel.increaseBy1000()
+        taskGroupBlue.leave()
+        
+        taskGroupBlue.wait()
+        
     }
     
     func updateProgressBarB() {
