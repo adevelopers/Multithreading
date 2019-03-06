@@ -9,19 +9,23 @@
 import UIKit
 
 
-class ViewModel {
+class Model {
     var value: Float = 0
+    var progressPercent: Float = 0
     
-    let concurrentQueue = DispatchQueue.init(label: "concurrent_queue_for_value", attributes: DispatchQueue.Attributes.concurrent)
     
-    @objc func increaseBy1000() {
-        for _ in 0..<1000 {
+    
+    @objc func increase(with count: Float = 10000000, onProgress: @escaping (Float)->Void) {
+        
+        for _ in 0..<Int(count) {
             let v = self.value + 1
             self.value = v
+            self.progressPercent = (self.value / count)
             if Int(self.value) % 1000 == 0 {
-                print("value->\(self.value)")
+                onProgress(self.progressPercent)
             }
         }
+        
     }
     
     func resetValue() {
@@ -29,7 +33,7 @@ class ViewModel {
     }
     
     func printValue() {
-        print("result value->\(self.value)")
+        print("result value->\(self.value * 0)")
     }
 }
 
@@ -41,8 +45,7 @@ class MainViewController: UIViewController {
     var progressBarB = UIProgressView(frame: .zero)
     var barsStackView = UIStackView(frame: .zero)
     
-    var model: Float = 0
-    var viewModel = ViewModel()
+    var models: [Model] = []
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -103,29 +106,51 @@ class MainViewController: UIViewController {
 extension MainViewController {
     
     @objc func startTasks() {
-        model = 0
-        viewModel.resetValue()
+        let model1 = Model()
+        let model2 = Model()
+        models.append(model1)
+        models.append(model2)
         
-        let taskGroupBlue = DispatchGroup()
+        let concurrentQueue = DispatchQueue.init(label: "concurrent_queue_for_value", attributes: DispatchQueue.Attributes.concurrent)
+        let concurrentQueue2 = DispatchQueue.init(label: "concurrent_queue_for_value2", attributes: DispatchQueue.Attributes.concurrent)
         
-        taskGroupBlue.notify(queue: .main) {
-            print("Всё отработало")
-            self.viewModel.printValue()
+        concurrentQueue.async {
+            let taskGroupA = DispatchGroup()
+            
+            
+            taskGroupA.enter()
+            model1.increase(with: 10000000){ progress in
+                self.updateProgressBarA(with: progress)
+            }
+            taskGroupA.leave()
+            
+            
         }
         
-        taskGroupBlue.enter()
-            self.viewModel.increaseBy1000()
-        taskGroupBlue.leave()
-        
-        taskGroupBlue.enter()
-            self.viewModel.increaseBy1000()
-        taskGroupBlue.leave()
-        
-        taskGroupBlue.wait()
-        
+        concurrentQueue2.async {
+            let taskGroupB = DispatchGroup()
+            taskGroupB.enter()
+            model2.increase(with: 5000000){ progress in
+                self.updateProgressBarB(with: progress)
+            }
+            taskGroupB.leave()
+            
+        }
+
     }
     
-    func updateProgressBarB() {
-        progressBarB.progress = model
+    
+    
+    func updateProgressBarA(with progress: Float) {
+        DispatchQueue.main.async {
+            self.progressBarA.progress = progress
+        }
+    }
+    
+    func updateProgressBarB(with progress: Float) {
+        DispatchQueue.main.async {
+            self.progressBarB.progress = progress
+            self.progressBarB.setNeedsDisplay()
+        }
     }
 }
