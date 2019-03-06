@@ -13,15 +13,11 @@ class Model {
     var value: Float = 0
     var progressPercent: Float = 0
     
-    
-    
     @objc func increase(with count: Float = 10000000, onProgress: @escaping (Float)->Void) {
-        
         for _ in 0..<Int(count) {
-            let v = self.value + 1
-            self.value = v
-            self.progressPercent = (self.value / count)
-            if Int(self.value) % 1000 == 0 {
+            value += 1
+            progressPercent = (value / count)
+            if Int(value) % 1000 == 0 {
                 onProgress(self.progressPercent)
             }
         }
@@ -33,7 +29,7 @@ class Model {
     }
     
     func printValue() {
-        print("result value->\(self.value * 0)")
+        print("result value->\(value)")
     }
 }
 
@@ -58,8 +54,8 @@ class MainViewController: UIViewController {
     func addUI() {
         progressBarA.progress = 0.0
         progressBarB.progress = 0.0
-        progressBarA.trackTintColor = .clear
-        progressBarB.trackTintColor = .clear
+        progressBarA.trackTintColor = .lightGray
+        progressBarB.trackTintColor = .lightGray
         progressBarA.progressTintColor = #colorLiteral(red: 0.5568627715, green: 0.3529411852, blue: 0.9686274529, alpha: 1)
         progressBarB.progressTintColor = #colorLiteral(red: 0.8549019694, green: 0.250980407, blue: 0.4784313738, alpha: 1)
         
