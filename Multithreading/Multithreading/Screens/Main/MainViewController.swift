@@ -9,23 +9,27 @@
 import UIKit
 
 
-class ViewModel {
+class Model {
     var value: Float = 0
+    var progressPercent: Float = 0
     
-    let concurrentQueue = DispatchQueue.init(label: "concurrent_queue_for_value", attributes: DispatchQueue.Attributes.concurrent)
-    
-    @objc func increaseBy1000() {
-        concurrentQueue.async(flags: .barrier) {
-            for _ in 0..<1000 {
-                let v = self.value + 1
-                self.value = v
-                print("value->\(self.value)")
+    @objc func increase(with count: Float = 10000000, onProgress: @escaping (Float)->Void) {
+        for _ in 0..<Int(count) {
+            value += 1
+            progressPercent = (value / count)
+            if Int(value) % 1000 == 0 {
+                onProgress(self.progressPercent)
             }
         }
+        
     }
     
     func resetValue() {
         value = 0
+    }
+    
+    func printValue() {
+        print("result value->\(value)")
     }
 }
 
@@ -37,8 +41,7 @@ class MainViewController: UIViewController {
     var progressBarB = UIProgressView(frame: .zero)
     var barsStackView = UIStackView(frame: .zero)
     
-    var model: Float = 0
-    var viewModel = ViewModel()
+    var models: [Model] = []
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -51,8 +54,8 @@ class MainViewController: UIViewController {
     func addUI() {
         progressBarA.progress = 0.0
         progressBarB.progress = 0.0
-        progressBarA.trackTintColor = .clear
-        progressBarB.trackTintColor = .clear
+        progressBarA.trackTintColor = .lightGray
+        progressBarB.trackTintColor = .lightGray
         progressBarA.progressTintColor = #colorLiteral(red: 0.5568627715, green: 0.3529411852, blue: 0.9686274529, alpha: 1)
         progressBarB.progressTintColor = #colorLiteral(red: 0.8549019694, green: 0.250980407, blue: 0.4784313738, alpha: 1)
         
@@ -99,24 +102,51 @@ class MainViewController: UIViewController {
 extension MainViewController {
     
     @objc func startTasks() {
-        model = 0
-        viewModel.resetValue()
+        let model1 = Model()
+        let model2 = Model()
+        models.append(model1)
+        models.append(model2)
         
-        DispatchQueue.global(qos: DispatchQoS.QoSClass.userInitiated).async {
-            self.viewModel.increaseBy1000()
+        let concurrentQueue = DispatchQueue.init(label: "concurrent_queue_for_value", attributes: DispatchQueue.Attributes.concurrent)
+        let concurrentQueue2 = DispatchQueue.init(label: "concurrent_queue_for_value2", attributes: DispatchQueue.Attributes.concurrent)
+        
+        concurrentQueue.async {
+            let taskGroupA = DispatchGroup()
+            
+            
+            taskGroupA.enter()
+            model1.increase(with: 10000000){ progress in
+                self.updateProgressBarA(with: progress)
+            }
+            taskGroupA.leave()
+            
+            
         }
         
-        DispatchQueue.global(qos: DispatchQoS.QoSClass.userInitiated).async {
-            self.viewModel.increaseBy1000()
+        concurrentQueue2.async {
+            let taskGroupB = DispatchGroup()
+            taskGroupB.enter()
+            model2.increase(with: 5000000){ progress in
+                self.updateProgressBarB(with: progress)
+            }
+            taskGroupB.leave()
+            
         }
 
-        
-//        Thread.detachNewThreadSelector(#selector(ViewModel.increaseBy1000), toTarget: viewModel, with: nil)
-//        Thread.detachNewThreadSelector(#selector(ViewModel.increaseBy1000), toTarget: viewModel, with: nil)
-       
     }
     
-    func updateProgressBarB() {
-        progressBarB.progress = model
+    
+    
+    func updateProgressBarA(with progress: Float) {
+        DispatchQueue.main.async {
+            self.progressBarA.progress = progress
+        }
+    }
+    
+    func updateProgressBarB(with progress: Float) {
+        DispatchQueue.main.async {
+            self.progressBarB.progress = progress
+            self.progressBarB.setNeedsDisplay()
+        }
     }
 }
