@@ -13,7 +13,7 @@ class Model {
     var value: Float = 0
     var progressPercent: Float = 0
     
-    @objc func increase(with count: Float = 10000000, onProgress: @escaping (Float)->Void) {
+    @objc func increase(with count: Float = 10000000, onProgress: @escaping (Float)->Void, onFinished: ()->Void = {}) {
         for _ in 0..<Int(count) {
             value += 1
             progressPercent = (value / count)
@@ -21,7 +21,7 @@ class Model {
                 onProgress(self.progressPercent)
             }
         }
-        
+        onFinished()
     }
     
     func resetValue() {
@@ -107,32 +107,35 @@ extension MainViewController {
         models.append(model1)
         models.append(model2)
         
-        let concurrentQueue = DispatchQueue.init(label: "concurrent_queue_for_value", attributes: DispatchQueue.Attributes.concurrent)
-        let concurrentQueue2 = DispatchQueue.init(label: "concurrent_queue_for_value2", attributes: DispatchQueue.Attributes.concurrent)
+       let semaphore = DispatchSemaphore(value: 0)
+    
+       let globalQueue = DispatchQueue.global(qos: DispatchQoS.QoSClass.userInteractive)
         
-        concurrentQueue.async {
-            let taskGroupA = DispatchGroup()
-            
-            
-            taskGroupA.enter()
-            model1.increase(with: 10000000){ progress in
+       globalQueue.async {
+            model1.increase(onProgress: { progress in
+                print("1️⃣semaphore \(progress) value -> \(semaphore.debugDescription)")
                 self.updateProgressBarA(with: progress)
+            }, onFinished: {
+                semaphore.signal()
             }
-            taskGroupA.leave()
-            
-            
+            )
         }
         
-        concurrentQueue2.async {
-            let taskGroupB = DispatchGroup()
-            taskGroupB.enter()
-            model2.increase(with: 5000000){ progress in
+        semaphore.wait()
+       
+        globalQueue.async {
+            model2.increase(onProgress: { progress in
+                print("2️⃣semaphore \(progress) value -> \(semaphore.debugDescription)")
                 self.updateProgressBarB(with: progress)
+            }, onFinished: {
+                semaphore.signal()
             }
-            taskGroupB.leave()
-            
+            )
         }
-
+        
+        semaphore.wait()
+        
+        
     }
     
     
